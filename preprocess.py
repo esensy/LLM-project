@@ -98,8 +98,8 @@ def merge_titles_and_paragraphs(text):
 def preprocess_text(text):
     return merge_titles_and_paragraphs(remove_duplicate_lines(clean_noise(text)))
 
-# 페이지 단위 청킹 함수 (for pdfplumber)
-def merge_page_content_plumber(full_docs, filenames, min_length=500, max_length=1500):
+# 페이지 단위 청킹 함수 (for pymupdf)
+def merge_page_content_mup(full_docs, filenames, min_length=500, max_length=1500):
     merged_full_docs = []
 
     for filename, doc in zip(filenames, full_docs):
@@ -249,8 +249,8 @@ def merge_page_content_plumber(full_docs, filenames, min_length=500, max_length=
     print(f"{len(merged_full_docs)}개의 문서를 병합했습니다.")
     return merged_full_docs
 
-# 페이지 단위 청킹 함수 (for pymupdf)
-def merge_page_content_mup(full_docs, filenames, min_length=500, max_length=3000):
+# 페이지 단위 청킹 함수 (for pdfplumber)
+def merge_page_content_plumber(full_docs, filenames, min_length=500, max_length=3000):
     merged_full_docs = []
 
     for filename, doc in zip(filenames, full_docs):

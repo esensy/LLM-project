@@ -7,15 +7,14 @@ import re
 import os
 import unicodedata
 import glob
-import logging  # 남겨두었으나 로그 호출은 없음
 from collections import OrderedDict
-from datetime import datetime
 
 ## 수정 필요
 pdfplumber_path = "C:/Users/user/OneDrive/Deesktop/mid_project/output/pdfplumber_json"
 pymupdf_path = "C:/Users/user/OneDrive/Deesktop/mid_project/output/pymupdf_json"
 
-# JSON 로딩 함수
+
+# CSV 파일 및 JSON 로딩 함수
 def load_data(folder_path):
     full_data = []
     filenames = []  # 파일 이름을 저장할 리스트
@@ -26,13 +25,11 @@ def load_data(folder_path):
         return full_data, filenames
 
     for path in json_files:
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            full_data.append(data)
-            filenames.append(os.path.basename(path))  # 경로에서 파일 이름만 추출하여 저장
-        except Exception as e:
-            pass
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        full_data.append(data)
+        filenames.append(os.path.basename(path))  # 경로에서 파일 이름만 추출하여 저장
+
 
     return full_data, filenames
 
@@ -215,7 +212,7 @@ def merge_page_content(full_docs, filenames, min_length=500, max_length=3000):
                 merged_pages.append({
                     "filename": filename,
                     "page_number": int(merged_page_number),
-                    "types": ",".join(list(types)),
+                    "types": ", ".join(list(types)),
                     "merged_page_content": merged_text,
                 })
 
@@ -225,35 +222,90 @@ def merge_page_content(full_docs, filenames, min_length=500, max_length=3000):
 
     return merged_full_docs
 
-# 병합된 데이터 JSON 저장 함수
-def save_merged_data(merged_data, save_path):
-    with open(save_path, "w", encoding="utf-8") as f:
-        json.dump(merged_data, f, ensure_ascii=False, indent=2)
+# 최종 데이터 출력 함수 (for pymupdf)
+def merge_for_mup(mup_path):
+    print("=== PyMuPDF Data Processing Start ===")
+    
+    full_docs, filenames = load_data(mup_path)
+    
+    if not full_docs:
+        print("No PyMuPDF data found. Skipping.")
+        return
+        
+    merged_mup_docs = merge_page_content(full_docs, filenames)
+    
+    output_file = "merged_mup_data.json"
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(merged_mup_docs, f, ensure_ascii=False, indent=2)
+        print(f"PyMuPDF data saved: {output_file}")
+    except Exception as e:
+        print(f"Failed to save PyMuPDF data: {e}")
 
-# 병합 및 전처리 과정 함수 (pdfplumber 전용)
-def merge_for_plumber(json_folder_path):
-    full_data, filenames = load_data(json_folder_path)
-    if not full_data:
-        return None
-    merged_docs = merge_page_content(full_data, filenames)
-    return merged_docs
+# 최종 데이터 출력 함수 (for pdfplumber)
+def merge_for_plumber(plumber_path):
+    print("=== PDFPlumber Data Processing Start ===")
+    
+    full_docs, filenames = load_data(plumber_path)
+    
+    if not full_docs:
+        print("No PDFPlumber data found. Skipping.")
+        return
+        
+    merged_plumber_docs = merge_page_content(full_docs, filenames)
 
-# 병합 및 전처리 과정 함수 (pymupdf 전용)
-def merge_for_mup(json_folder_path):
-    full_data, filenames = load_data(json_folder_path)
-    if not full_data:
-        return None
-    merged_docs = merge_page_content(full_data, filenames)
-    return merged_docs
+    output_file = "merged_plumber_data.json"
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(merged_plumber_docs, f, ensure_ascii=False, indent=2)
 
-# 실행 예시
+        print(f"PDFPlumber data saved: {output_file}")
+    except Exception as e:
+        print(f"Failed to save PDFPlumber data: {e}")
+
+def main():
+    
+    print("=== Data Preprocessing Started ===")
+    
+
+    # 전역 변수 사용
+    global pymupdf_path, pdfplumber_path
+    
+
+
+    # 병합 및 전처리 실행
+    try:
+        merge_for_mup(pymupdf_path)
+        merge_for_plumber(pdfplumber_path)
+        
+        print("=== All Preprocessing Completed Successfully ===")
+        
+    except Exception as e:
+        error_msg = f"Error during preprocessing: {e}"
+        print(error_msg)
+
+# 인코딩 문제 해결
+import sys
+import os
+import io
+
+# Windows에서 UTF-8 출력을 위한 설정
+if sys.platform.startswith('win'):
+    # 환경변수 설정
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    
+    # stdout을 UTF-8로 강제 설정
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+
+# 스크립트 시작 메시지
+print("=== Script Loaded Successfully ===")
+
 if __name__ == "__main__":
-    # pdfplumber 데이터 병합 및 전처리
-    plumber_docs = merge_for_plumber(pdfplumber_path)
-    if plumber_docs:
-        save_merged_data(plumber_docs, "merged_pdfplumber_data.json")
-
-    # pymupdf 데이터 병합 및 전처리
-    mup_docs = merge_for_mup(pymupdf_path)
-    if mup_docs:
-        save_merged_data(mup_docs, "merged_pymupdf_data.json")
+    main()
+else:
+    print("Module imported successfully.")

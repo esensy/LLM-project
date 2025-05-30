@@ -1,17 +1,7 @@
 # 중급 프로젝트 | RFP 내용 요약 서비스 구현
-
-1. [📊 프로젝트 개요](#-프로젝트-개요)
-2. [🏗️ 시스템 아키텍처](#-시스템-아키텍처)
-3. [💻 개발 환경](#-개발-환경)
-4. [🔁 워크플로우](#-워크플로우)
-5. [✨ 핵심 기능](#-핵심-기능)
-6. [🧱 개발 방식](#-개발-방식)
-7. [⚙️ 성능 최적화](#-성능-최적화)
-8. [🚀 향후 개선사항](#-향후-개선사항)
-
 ---
 
-## 📊 프로젝트 개요
+## 프로젝트 개요
 
 ### 프로젝트 목적
 
@@ -33,7 +23,260 @@
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## 설치 및 실행
+
+1. **의존성 설치**
+```bash
+pip install -r requirements.txt
+```
+
+2. **환경변수 설정**
+`.env` 파일을 생성하고 다음 내용을 추가:
+
+```env
+# === 필수 설정 ===
+# OpenAI API 키
+OPENAI_API_KEY=your_openai_api_key_here
+
+# RAG 시스템 파일 경로 (반드시 설정 필요)
+MUP_FILE_PATH=data/merged_mup_data.json
+PLUMBER_FILE_PATH=data/merged_plumber_data.json
+METADATA_PATH=data/data_list.csv
+
+# === 선택적 설정 ===
+# GPU 메모리 최적화 (GPU 사용 시 권장)
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
+# 문서 처리 파이프라인 경로 (문서 처리 기능 사용 시만 필요)
+HWP_FILES_DIR=files
+PDF_OUTPUT_DIR=pdf_files
+PDF_INPUT_DIR=pdf_input
+PDFPLUMBER_OUTPUT_DIR=output/pdfplumber
+PDFPLUMBER_JSON_DIR=output/pdfplumber_json
+PYMUPDF_OUTPUT_DIR=output/pymupdf
+PYMUPDF_JSON_DIR=output/pymupdf_json
+
+# 전처리 경로 (JSON 전처리 기능 사용 시만 필요)
+PDFPLUMBER_PATH=output/pdfplumber_json
+PYMUPDF_PATH=output/pymupdf_json
+```
+
+**중요**: `.env` 파일을 참고하여 본인 환경에 맞게 경로를 설정하세요.
+
+---
+
+## 사용법
+
+### 1. RAG 시스템 실행
+
+#### 기본 실행 (사전 정의된 질문 사용)
+```bash
+python main.py
+```
+또는
+```bash
+python main.py --mode predefined
+```
+
+#### 대화형 모드 실행
+```bash
+python main.py --mode interactive
+```
+
+#### 사용자 정의 질문으로 실행
+```bash
+python main.py --mode predefined --questions "첫 번째 질문" "두 번째 질문" "세 번째 질문"
+```
+
+**실행 모드 설명:**
+- **predefined**: 사전에 정의된 질문들을 순차적으로 처리 (기본값)
+- **interactive**: 사용자가 직접 질문을 입력하여 대화형으로 진행
+
+**명령행 옵션:**
+- `--mode`: 실행 모드 선택 (`predefined` 또는 `interactive`)
+- `--questions`: 사용자 정의 질문 리스트 (predefined 모드에서만 사용)
+
+**사용 예시:**
+```bash
+# 기본 모드 (사전 정의된 질문 사용)
+python main.py
+
+# 대화형 모드
+python main.py --mode interactive
+
+# 특정 질문들만 테스트
+python main.py --mode predefined --questions "공고 번호가 20240821893인 사업 이름이 뭐야?" "사업 금액이 가장 큰 사업은 뭐야?"
+
+# 단일 질문 테스트
+python main.py --mode predefined --questions "국민연금공단이 발주한 이러닝시스템 관련 사업 요구사항을 알려줘."
+```
+
+### 2. 문서 처리 파이프라인 실행
+
+**전체 파이프라인 (HWP → PDF → 텍스트 추출 → 전처리)**
+```bash
+python document_pipeline_main.py --mode full
+```
+
+**텍스트 추출만 실행**
+```bash
+python document_pipeline_main.py --mode extract
+```
+
+**전처리만 실행**
+```bash
+python document_pipeline_main.py --mode preprocess
+```
+
+### 3. 개별 스크립트 실행
+
+**HWP를 PDF로 변환**
+```bash
+python scripts/convert_hwp_to_pdf.py --hwp-dir files --pdf-dir pdf_files
+```
+
+**PDFPlumber로 텍스트 추출**
+```bash
+python scripts/extract_with_pdfplumber.py --input-dir pdf_files --output-dir output/pdfplumber --json-dir output/pdfplumber_json
+```
+
+**PyMuPDF로 텍스트 추출**
+```bash
+python scripts/extract_with_pymupdf.py --input-dir pdf_files --output-dir output/pymupdf --json-dir output/pymupdf_json
+```
+
+**텍스트 전처리**
+```bash
+python scripts/preprocess_documents.py --pymupdf-path output/pymupdf_json --pdfplumber-path output/pdfplumber_json
+```
+
+---
+
+## 프로젝트 구조
+
+```
+rag_project/
+├── .env                           # 환경변수 파일
+├── .gitignore                     # Git 무시 파일
+├── requirements.txt               # 의존성 패키지
+├── main.py                       # RAG 시스템 메인 실행 파일
+├── document_pipeline_main.py     # 문서 처리 파이프라인 메인 파일
+├── config/
+│   └── settings.py               # 설정 관리
+├── models/
+│   └── embeddings.py             # 임베딩 모델 관리
+├── data/
+│   ├── __init__.py
+│   ├── loader.py                 # 데이터 로드 기능
+│   └── preprocessor.py           # 데이터 전처리 기능
+├── database/
+│   ├── __init__.py
+│   ├── vector_db.py              # 벡터 DB 생성 및 관리
+│   └── metadata_db.py            # 메타데이터 DB 관리
+├── search/
+│   ├── __init__.py
+│   ├── metadata_search.py        # 메타데이터 검색
+│   ├── hybrid_search.py          # 하이브리드 검색
+│   └── document_search.py        # 문서 검색
+├── conversation/
+│   ├── __init__.py
+│   ├── manager.py                # 대화 맥락 관리
+│   └── llm_processor.py          # LLM 기반 처리
+├── utils/
+│   ├── __init__.py
+│   ├── text_utils.py             # 텍스트 처리 유틸리티
+│   └── display_utils.py          # 출력 관련 유틸리티
+├── response/
+│   ├── __init__.py
+│   └── generator.py              # 응답 생성
+├── document_processing/          # 문서 처리 모듈
+│   ├── __init__.py
+│   ├── hwp_converter.py          # HWP → PDF 변환
+│   ├── pdf_extractors/
+│   │   ├── __init__.py
+│   │   ├── pdfplumber_extractor.py    # PDFPlumber 텍스트 추출
+│   │   └── pymupdf_extractor.py       # PyMuPDF 텍스트 추출
+│   ├── text_preprocessor.py      # 텍스트 전처리
+│   └── pipeline.py               # 전체 문서 처리 파이프라인
+└── scripts/                      # 독립 실행 스크립트
+    ├── convert_hwp_to_pdf.py     # HWP 변환 스크립트
+    ├── extract_with_pdfplumber.py    # PDFPlumber 추출 스크립트
+    ├── extract_with_pymupdf.py       # PyMuPDF 추출 스크립트
+    └── preprocess_documents.py       # 문서 전처리 스크립트
+```
+
+---
+
+## 모듈 설명
+
+### config/settings.py
+- 환경변수 관리
+- API 키 설정
+- 파일 경로 설정
+- 모델 및 검색 파라미터 설정
+
+### models/embeddings.py
+- 한국어 특화 임베딩 모델 로드
+- HuggingFace SBERT 모델 사용
+
+### data/
+- **loader.py**: JSON, CSV 데이터 로드
+- **preprocessor.py**: 메타데이터 전처리 (날짜, 금액 변환)
+
+### database/
+- **vector_db.py**: 문서 벡터 DB 생성
+- **metadata_db.py**: 메타데이터 벡터 DB 생성
+
+### search/
+- **metadata_search.py**: 규칙 기반 메타데이터 검색
+- **hybrid_search.py**: 발주기관 + 내용 하이브리드 검색
+- **document_search.py**: 메인 검색 처리 로직
+
+### conversation/
+- **manager.py**: 대화 맥락 관리 클래스
+- **llm_processor.py**: LLM 기반 질문 분석 및 처리
+
+### response/generator.py
+- 컨텍스트 기반 응답 생성
+
+### utils/
+- **text_utils.py**: 텍스트 정리 유틸리티
+- **display_utils.py**: 출력 포맷팅 유틸리티
+---
+
+## 개발 환경
+
+### 플랫폼 및 도구
+
+- **개발 환경**: Google Colab Pro
+- **Python 버전**: 3.11
+- **주요 라이브러리**:
+    - `langchain` (0.2.x): 벡터 DB 및 텍스트 처리
+    - `langchain-openai`: GPT 모델 연동
+    - `langchain-huggingface`: 한국어 임베딩 모델
+    - `chromadb`: 벡터 데이터베이스
+    - `pandas`, `numpy`: 데이터 처리
+    - `openai`: LLM API 연동
+
+### 모델 및 API
+
+- **LLM**: GPT-4.1-mini (OpenAI)
+- **임베딩 모델**: `snunlp/KR-SBERT-V40K-klueNLI-augSTS` (한국어 특화)
+- **벡터 DB**: ChromaDB (로컬 저장)
+
+### 데이터 구조
+
+```json
+{
+  "filename": "사업파일명.json",
+  "page_number": 1,
+  "merged_page_content": "페이지 내용..."
+}
+
+```
+---
+
+## 시스템 아키텍처
 
 ### 전체 시스템 구조
 
@@ -67,40 +310,7 @@
 
 ---
 
-## 💻 개발 환경
-
-### 플랫폼 및 도구
-
-- **개발 환경**: Google Colab Pro
-- **Python 버전**: 3.11
-- **주요 라이브러리**:
-    - `langchain` (0.2.x): 벡터 DB 및 텍스트 처리
-    - `langchain-openai`: GPT 모델 연동
-    - `langchain-huggingface`: 한국어 임베딩 모델
-    - `chromadb`: 벡터 데이터베이스
-    - `pandas`, `numpy`: 데이터 처리
-    - `openai`: LLM API 연동
-
-### 모델 및 API
-
-- **LLM**: GPT-4.1-mini (OpenAI)
-- **임베딩 모델**: `snunlp/KR-SBERT-V40K-klueNLI-augSTS` (한국어 특화)
-- **벡터 DB**: ChromaDB (로컬 저장)
-
-### 데이터 구조
-
-```json
-{
-  "filename": "사업파일명.json",
-  "page_number": 1,
-  "merged_page_content": "페이지 내용..."
-}
-
-```
-
----
-
-## 🔄 워크플로우
+## 워크플로우
 
 ### 1. 데이터 전처리 단계
 
@@ -144,7 +354,7 @@ graph TD
 
 ---
 
-## ⚙️ 핵심 기능
+## 핵심 기능
 
 ### 1. 지능형 질문 분석
 
@@ -200,45 +410,8 @@ class ConversationManager:
 
 ---
 
-## 🛠️ 개발 방식
 
-### 1. 점진적 개발 (Incremental Development)
-
-- **1단계**: 기본 질의응답 시스템 구축
-- **2단계**: 메타데이터 기반 검색 추가
-- **3단계**: 대화 맥락 관리 기능 구현
-- **4단계**: 하이브리드 검색 및 다중 DB 지원
-- **5단계**: LLM 호출 최적화
-
-### 2. 모듈화 설계
-
-```python
-# 핵심 모듈 분리
-- load_documents(): 데이터 로드 및 전처리
-- create_metadata_db(): 메타데이터 벡터 DB 생성
-- create_document_db(): 문서 벡터 DB 생성
-- process_with_llm(): LLM 기반 질문 분석
-- optimized_process_query(): 통합 질문 처리
-- ConversationManager: 대화 맥락 관리
-
-```
-
-### 3. 프롬프트 엔지니어링
-
-- **시스템 프롬프트**: 명확한 역할 정의 및 작업 지시
-- **Human 프롬프트**: 구체적인 예시 및 JSON 형식 지정
-- **표준화 규칙**: 메타데이터 질문의 일관된 재구성
-
-### 4. 성능 모니터링
-
-- 청크 길이 분포 분석
-- 검색 유사도 점수 모니터링
-- LLM 호출 횟수 추적
-- 처리 시간 측정
-
----
-
-## 📈 성능 최적화
+## 성능 최적화
 
 ### 1. LLM 호출 최적화
 
@@ -266,7 +439,7 @@ class ConversationManager:
 
 ---
 
-## 🔮 향후 개선사항
+## 향후 개선사항
 
 ### 1. 성능 개선
 
@@ -291,7 +464,7 @@ class ConversationManager:
 
 ---
 
-## 📊 결론
+## 결론
 
 본 프로젝트를 통해 공공입찰 공고 문서에 대한 효율적인 질의응답 시스템을 구축했습니다. 특히 대화 맥락을 고려한 지능형 검색과 LLM 호출 최적화를 통해 실용적이고 비용 효율적인 솔루션을 개발했습니다.
 
@@ -310,3 +483,17 @@ class ConversationManager:
 - LLM 기반 응답 검증 시스템
 
 이 시스템은 공공입찰 정보 접근성을 크게 향상시킬 수 있으며, 유사한 문서 기반 질의응답 시스템 개발에도 활용할 수 있는 범용적인 아키텍처를 제공합니다.
+
+---
+
+## 주의사항
+
+- **Windows 환경**: HWP 변환 기능은 Windows와 한글과컴퓨터 한/글이 설치된 환경에서만 작동합니다.
+- **API 키**: OpenAI API 키가 필요합니다.
+- **CUDA**: GPU 가속을 위해서는 CUDA 설치가 권장됩니다.
+
+---
+
+## 라이센스
+
+이 프로젝트는 원본 코드의 모든 로직과 주석을 보존하면서 모듈화한 버전입니다.

@@ -1,5 +1,5 @@
 # 중급 프로젝트 | RFP 내용 요약 서비스 구현
-- 보고서 다운로드 링크 : 
+- 보고서 다운로드 링크 : https://drive.google.com/file/d/16lKYOQV7HHHBKJLPud8fL-dPQrI8cGHK/view?usp=sharing
 ---
 ## 목차
 

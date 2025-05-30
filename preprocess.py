@@ -98,159 +98,8 @@ def merge_titles_and_paragraphs(text):
 def preprocess_text(text):
     return merge_titles_and_paragraphs(remove_duplicate_lines(clean_noise(text)))
 
-# 페이지 단위 청킹 함수 (for pymupdf)
-def merge_page_content_mup(full_docs, filenames, min_length=500, max_length=1500):
-    merged_full_docs = []
-
-    for filename, doc in zip(filenames, full_docs):
-        merged_pages = []
-        page_idx = 0
-
-        while page_idx < len(doc):
-            types = set()
-            merged_text_parts = []
-            merged_page_number = float("inf")
-
-            current_length = 0
-            start_idx = page_idx
-
-            # --- 페이지 단위 병합 루프 ---
-            while page_idx < len(doc) and current_length < max_length:
-                page_texts = [line['text'] for line in doc[page_idx] if 'text' in line]
-                page_text = preprocess_text("\n".join(page_texts))
-
-                if not page_text:
-                    page_idx += 1
-                    continue
-
-                types.update(line['type'] for line in doc[page_idx] if 'type' in line)
-                merged_text_parts.append(page_text)
-                merged_page_number = min(merged_page_number, page_idx + 1)
-                current_length = sum(len(p) for p in merged_text_parts)
-
-                if current_length >= max_length:
-                    break
-
-                page_idx += 1
-
-            merged_text = "\n".join(merged_text_parts).strip()
-
-            # --- 최대 길이 초과 시, [[표]] 청크 분할 & sub-표 태깅 ---
-            if len(merged_text) > max_length:
-                # 1) [[/표]] 기준 분리
-                sub_lst = re.split(r'(\[\[/표\]\])', merged_text)
-                reconstructed = []
-
-                for i in range(0, len(sub_lst), 2):
-                    sub = sub_lst[i].strip()
-                    if i + 1 < len(sub_lst):
-                        sub += sub_lst[i + 1]  # 닫는 태그 포함
-
-                    if sub.startswith('[[표]]') and sub.endswith('[[/표]]'):
-                        # 안의 내용만 추출
-                        inner = sub[len('[[표]]'):-len('[[/표]]')].strip()
-
-                        # 내용이 너무 긴 경우 분할
-                        if len(sub) > max_length:
-                            parts = inner.split('|')
-                            temp_buffer = ""
-
-                            for item in parts:
-                                item = item.strip()
-                                if not item:
-                                    continue
-
-                                chunk = (temp_buffer + '|' + item) if temp_buffer else item
-                                if len(f"[[표]]{chunk}[[/표]]") <= max_length:
-                                    temp_buffer = chunk
-                                else:
-                                    reconstructed.append(f"[[sub-표]][[표]]{temp_buffer.strip()}[[/표]][[/sub-표]]")
-                                    temp_buffer = item
-
-                            if temp_buffer:
-                                reconstructed.append(f"[[sub-표]][[표]]{temp_buffer.strip()}[[/표]][[/sub-표]]")
-
-                        else:
-                            reconstructed.append(sub)
-
-                    else:
-                        # 일반 텍스트 처리
-                        if len(sub) > max_length:
-                            parts = sub.split('|')
-                            temp_buffer = ""
-                            for item in parts:
-                                item = item.strip()
-                                if not item:
-                                    continue
-                                chunk = (temp_buffer + '|' + item) if temp_buffer else item
-                                if len(chunk) <= max_length:
-                                    temp_buffer = chunk
-                                else:
-                                    reconstructed.append(f"[[sub-표]]{temp_buffer.strip()}[[/sub-표]]")
-                                    temp_buffer = item
-                            if temp_buffer:
-                                reconstructed.append(f"[[sub-표]]{temp_buffer.strip()}[[/sub-표]]")
-                        else:
-                            reconstructed.append(f"[[sub-표]]{sub}[[/sub-표]]")
-
-
-                # 3) 최종 청크 조합 및 페이지화
-                temp_buffer = ""
-                for part in reconstructed:
-                    part = part.strip()
-                    if not part:
-                        continue
-
-                    candidate = (temp_buffer + "\n" + part) if temp_buffer else part
-
-                    # soft threshold: 1500 넘어도 허용
-                    if len(candidate) <= max_length + 300:  # 1500보다 최대 300자 초과 허용
-                        temp_buffer = candidate
-                    else:
-                        if len(temp_buffer) >= min_length:
-                            merged_pages.append({
-                                "filename": filename,
-                                "page_number": int(merged_page_number),
-                                "types": ", ".join(sorted(types)),
-                                "merged_page_content": temp_buffer,
-                            })
-                        temp_buffer = part
-
-                if len(temp_buffer) >= min_length:
-                    merged_pages.append({
-                        "filename": filename,
-                        "page_number": int(merged_page_number),
-                        "types": ", ".join(sorted(types)),
-                        "merged_page_content": temp_buffer,
-                    })
-
-            # --- 정상 범위 내 페이지 추가 ---
-            elif len(merged_text) >= min_length:
-                merged_pages.append({
-                    "filename": filename,
-                    "page_number": int(merged_page_number),
-                    "types": ", ".join(sorted(types)),
-                    "merged_page_content": merged_text,
-                })
-
-            # --- 너무 짧으면 이전 블록에 병합 ---
-            elif merged_pages:
-                prev = merged_pages[-1]
-                merged = prev["merged_page_content"] + "\n" + merged_text
-                prev["merged_page_content"] = merged
-                prev["page_number"] = min(prev["page_number"], merged_page_number)
-                all_types = set(prev["types"].split(", ")) | types
-                prev["types"] = ", ".join(sorted(all_types))
-
-            page_idx += 1
-
-        merged_full_docs.append(merged_pages)
-
-    print(f"{len(merged_full_docs)}개의 문서를 병합했습니다.")
-    return merged_full_docs
-
-# 페이지 단위 청킹 함수 (for pdfplumber)
-def merge_page_content_plumber(full_docs, filenames, min_length=500, max_length=3000):
+# 페이지 단위 청킹 함수
+def merge_page_content(full_docs, filenames, min_length=500, max_length=3000):
     merged_full_docs = []
 
     for filename, doc in zip(filenames, full_docs):
@@ -368,16 +217,17 @@ def merge_page_content_plumber(full_docs, filenames, min_length=500, max_length=
     print(f"{len(merged_full_docs)}개의 문서를 병합했습니다.")
     return merged_full_docs
 
-# 최종 데이터 출력 함수 (for pdfplumber)
-def merge_for_plumber(plumber_path):
-    full_docs, filenames = load_data(plumber_path)
-    merged_plumber_docs = merge_page_content_plumber(full_docs, filenames)
-
-    return merged_plumber_docs
-
 # 최종 데이터 출력 함수 (for pymupdf)
 def merge_for_mup(mup_path):
     full_docs, filenames = load_data(mup_path)
-    merged_mup_docs = merge_page_content_mup(full_docs, filenames)
+    merged_mup_docs = merge_page_content(full_docs, filenames)
 
     return merged_mup_docs
+
+
+# 최종 데이터 출력 함수 (for pdfplumber)
+def merge_for_plumber(plumber_path):
+    full_docs, filenames = load_data(plumber_path)
+    merged_plumber_docs = merge_page_content(full_docs, filenames)
+
+    return merged_plumber_docs

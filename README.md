@@ -62,3 +62,54 @@
 [응답 생성 및 검증] ← GPT-4.1-mini
     ↓
 [최종 응답 출력]
+```
+
+## 🗃️ 데이터베이스 구조
+
+- **메타데이터 벡터 DB**:
+    - 사업명, 발주기관 기준 임베딩
+- **문서 벡터 DB (Primary)**:
+    - MUP 데이터 청크 임베딩
+- **문서 벡터 DB (Secondary)**:
+    - Plumber 데이터 청크 임베딩
+- **메타데이터 DataFrame**:
+    - 구조화된 사업 정보 테이블 형태
+
+### 데이터베이스 구조
+
+- **메타데이터 벡터 DB**: 사업명 + 발주기관 임베딩  
+- **문서 벡터 DB (Primary)**: MUP 데이터 청크 임베딩  
+- **문서 벡터 DB (Secondary)**: Plumber 데이터 청크 임베딩  
+- **메타데이터 DataFrame**: 구조화된 사업 정보  
+
+---
+
+## 💻 개발 환경
+
+### 플랫폼 및 도구
+
+- **개발 환경**: Google Colab Pro  
+- **Python 버전**: 3.11  
+- **주요 라이브러리**:  
+  - `langchain` (0.2.x): 벡터 DB 및 텍스트 처리  
+  - `langchain-openai`: GPT 모델 연동  
+  - `langchain-huggingface`: 한국어 임베딩 모델  
+  - `chromadb`: 벡터 데이터베이스  
+  - `pandas`, `numpy`: 데이터 처리  
+  - `openai`: LLM API 연동  
+
+### 모델 및 API
+
+- **LLM**: GPT-4.1-mini (OpenAI)  
+- **임베딩 모델**: `snunlp/KR-SBERT-V40K-klueNLI-augSTS` (한국어 특화)  
+- **벡터 DB**: ChromaDB (로컬 저장)  
+
+### 데이터 구조
+
+```json
+{
+  "filename": "사업파일명.json",
+  "page_number": 1,
+  "merged_page_content": "페이지 내용..."
+}
+```

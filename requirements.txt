@@ -1,0 +1,28 @@
+# Core dependencies
+pandas
+numpy
+
+# LangChain and AI
+langchain
+langchain-huggingface
+langchain-openai
+langchain-community
+
+# Vector database
+chromadb
+
+# Configuration
+python-dotenv
+
+# ML and embeddings
+torch
+transformers
+sentence-transformers
+huggingface-hub
+
+# Document processing
+pdfplumber
+PyMuPDF
+
+# Windows HWP conversion (Windows only)
+pywin32

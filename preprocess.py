@@ -9,21 +9,60 @@ import unicodedata
 import glob
 import logging
 from collections import OrderedDict
+from datetime import datetime
 
 ## 수정 필요
-pdfplumber_path = "/content/drive/MyDrive/코드잇/PROJECT/2. 중급 프로젝트/huggingface/output/pdfplumber_json"
-pymupdf_path = "/content/drive/MyDrive/코드잇/PROJECT/2. 중급 프로젝트/huggingface/output/pymupdf_json"
+pdfplumber_path = "C:/Users/user/OneDrive/Deesktop/mid_project/output/pdfplumber_json"
+pymupdf_path = "C:/Users/user/OneDrive/Deesktop/mid_project/output/pymupdf_json"
+
+# 로깅 설정 함수
+def setup_logging():
+    """로그 파일 설정 및 로거 생성"""
+    # 현재 시간을 포함한 로그 파일명 생성
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"preprocess_log_{timestamp}.txt"
+    
+    # 로그 포맷 설정
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    
+    # 파일 핸들러 설정 (로그 파일에 저장)
+    file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(log_format))
+    
+    # 루트 로거 설정
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()  # 기존 핸들러 제거
+    logger.addHandler(file_handler)
+    
+    return logger, log_filename
 
 # CSV 파일 및 JSON 로딩 함수
 def load_data(folder_path):
     full_data = []
     filenames = []  # 파일 이름을 저장할 리스트
+    
+    logging.info(f"Checking folder path: {folder_path}")
+    logging.info(f"Folder exists: {os.path.exists(folder_path)}")
+    
+    json_files = glob.glob(os.path.join(folder_path, "*.json"))
+    logging.info(f"Found JSON files: {len(json_files)}")
+    
+    if not json_files:
+        logging.warning("No JSON files found.")
+        return full_data, filenames
 
-    for path in glob.glob(os.path.join(folder_path, "*.json")):
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        full_data.append(data)
-        filenames.append(os.path.basename(path))  # 경로에서 파일 이름만 추출하여 저장
+    for path in json_files:
+        logging.info(f"Loading: {path}")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            full_data.append(data)
+            filenames.append(os.path.basename(path))  # 경로에서 파일 이름만 추출하여 저장
+            logging.info(f"Successfully loaded: {os.path.basename(path)}")
+        except Exception as e:
+            logging.error(f"Failed to load file {path}: {e}")
 
     return full_data, filenames
 
@@ -101,8 +140,10 @@ def preprocess_text(text):
 # 페이지 단위 청킹 함수
 def merge_page_content(full_docs, filenames, min_length=500, max_length=3000):
     merged_full_docs = []
+    logging.info(f"Number of documents to merge: {len(full_docs)}")
 
     for filename, doc in zip(filenames, full_docs):
+        logging.info(f"Processing file: {filename}")
         merged_pages = []
         visited = [False] * len(doc)
         page_idx = 0
@@ -213,21 +254,113 @@ def merge_page_content(full_docs, filenames, min_length=500, max_length=3000):
             page_idx = temp_idx + 1
 
         merged_full_docs.append(merged_pages)
+        logging.info(f"{filename} processing completed: {len(merged_pages)} chunks created")
 
-    print(f"{len(merged_full_docs)}개의 문서를 병합했습니다.")
+    logging.info(f"{len(merged_full_docs)} documents merged successfully.")
     return merged_full_docs
 
 # 최종 데이터 출력 함수 (for pymupdf)
 def merge_for_mup(mup_path):
+    print("=== PyMuPDF Data Processing Start ===")
+    logging.info("=== PyMuPDF Data Processing Start ===")
+    
     full_docs, filenames = load_data(mup_path)
+    
+    if not full_docs:
+        logging.warning("No PyMuPDF data found. Skipping.")
+        print("No PyMuPDF data found. Skipping.")
+        return
+        
     merged_mup_docs = merge_page_content(full_docs, filenames)
-
-    return merged_mup_docs
-
+    
+    output_file = "merged_mup_data.json"
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(merged_mup_docs, f, ensure_ascii=False, indent=2)
+        logging.info(f"PyMuPDF data saved successfully: {output_file}")
+        logging.info(f"File size: {os.path.getsize(output_file)} bytes")
+        print(f"PyMuPDF data saved: {output_file}")
+    except Exception as e:
+        logging.error(f"Failed to save PyMuPDF data: {e}")
+        print(f"Failed to save PyMuPDF data: {e}")
 
 # 최종 데이터 출력 함수 (for pdfplumber)
 def merge_for_plumber(plumber_path):
+    print("=== PDFPlumber Data Processing Start ===")
+    logging.info("=== PDFPlumber Data Processing Start ===")
+    
     full_docs, filenames = load_data(plumber_path)
+    
+    if not full_docs:
+        logging.warning("No PDFPlumber data found. Skipping.")
+        print("No PDFPlumber data found. Skipping.")
+        return
+        
     merged_plumber_docs = merge_page_content(full_docs, filenames)
 
-    return merged_plumber_docs
+    output_file = "merged_plumber_data.json"
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(merged_plumber_docs, f, ensure_ascii=False, indent=2)
+        logging.info(f"PDFPlumber data saved successfully: {output_file}")
+        logging.info(f"File size: {os.path.getsize(output_file)} bytes")
+        print(f"PDFPlumber data saved: {output_file}")
+    except Exception as e:
+        logging.error(f"Failed to save PDFPlumber data: {e}")
+        print(f"Failed to save PDFPlumber data: {e}")
+
+def main():
+    # 로깅 설정
+    logger, log_filename = setup_logging()
+    
+    print("=== Data Preprocessing Started ===")
+    print(f"Log file: {log_filename}")
+    
+    logging.info("=== Data Preprocessing Started ===")
+    logging.info(f"Current working directory: {os.getcwd()}")
+
+    # 전역 변수 사용
+    global pymupdf_path, pdfplumber_path
+    
+    # 입력 경로 확인 (기본값 사용)
+    logging.info(f"PyMuPDF path: {pymupdf_path}")
+    logging.info(f"PDFPlumber path: {pdfplumber_path}")
+
+    # 병합 및 전처리 실행
+    try:
+        merge_for_mup(pymupdf_path)
+        merge_for_plumber(pdfplumber_path)
+        
+        print("=== All Preprocessing Completed Successfully ===")
+        logging.info("=== All Preprocessing Completed Successfully ===")
+        
+    except Exception as e:
+        error_msg = f"Error during preprocessing: {e}"
+        print(error_msg)
+        logging.error(error_msg)
+
+# 인코딩 문제 해결
+import sys
+import os
+import io
+
+# Windows에서 UTF-8 출력을 위한 설정
+if sys.platform.startswith('win'):
+    # 환경변수 설정
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    
+    # stdout을 UTF-8로 강제 설정
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+
+# 스크립트 시작 메시지
+print("=== Script Loaded Successfully ===")
+
+if __name__ == "__main__":
+    main()
+else:
+    print("Module imported successfully.")

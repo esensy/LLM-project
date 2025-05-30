@@ -95,8 +95,6 @@
 ### 데이터 구조
 
 ```json
-
-json
 {
   "filename": "사업파일명.json",
   "page_number": 1,
@@ -156,8 +154,6 @@ graph TD
 ### 1. 지능형 질문 분석
 
 ```python
-
-python
 def process_with_llm(query, conversation_context, df, chat):
     """
     LLM을 통한 질문 분석:
@@ -192,8 +188,6 @@ def process_with_llm(query, conversation_context, df, chat):
 ### 3. 대화 맥락 관리
 
 ```python
-
-python
 class ConversationManager:
     """
     - 최근 대화 기록 유지 (기본 5개)
@@ -224,8 +218,6 @@ class ConversationManager:
 ### 2. 모듈화 설계
 
 ```python
-
-python
 # 핵심 모듈 분리
 - load_documents(): 데이터 로드 및 전처리
 - create_metadata_db(): 메타데이터 벡터 DB 생성
@@ -278,8 +270,6 @@ python
 **구현 방법**:
 
 ```python
-
-python
 # 맥락 연결 판단 로직
 1. 현재 질문에 이전 대화의 동일 기관명 있는가?
 2. "각각", "둘 다" 등 복수 참조 표현 있는가?
@@ -303,8 +293,6 @@ python
 - 규칙 기반 처리 패턴 확장
 
 ```python
-
-python
 # 표준화 예시
 "가장 많은 자금", "예산 규모가 최대" → "사업 금액이 가장 큰"
 "어떤 기관에서", "누가 발주한" → "발주 기관"
@@ -328,8 +316,6 @@ python
 **해결 구조**:
 
 ```python
-
-python
 # 2단계 검색 시스템
 1. Primary DB 검색 → LLM 응답 생성 및 적절성 검증
 2. 적절하지 않으면 → Secondary DB 검색 → 최종 응답
